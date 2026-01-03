@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores';
@@ -54,6 +54,14 @@ export default function LoginScreen() {
     router.push('/(auth)/signup');
   };
 
+  const handleSocialLogin = (provider: string) => {
+    Alert.alert(
+      `${provider} 로그인`,
+      `${provider} 로그인 기능은 준비 중입니다.\n휴대폰 번호로 로그인해 주세요.`,
+      [{ text: '확인' }]
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAvoidingView
@@ -105,13 +113,19 @@ export default function LoginScreen() {
             <View className="flex-1 h-px bg-gray-200" />
           </View>
 
-          {/* 소셜 로그인 (플레이스홀더) */}
+          {/* 소셜 로그인 */}
           <View className="gap-3">
-            <TouchableOpacity className="flex-row items-center justify-center bg-yellow-400 py-4 rounded-xl">
+            <TouchableOpacity
+              className="flex-row items-center justify-center bg-yellow-400 py-4 rounded-xl"
+              onPress={() => handleSocialLogin('카카오')}
+            >
               <Text className="text-lg font-semibold">카카오로 시작하기</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity className="flex-row items-center justify-center bg-green-500 py-4 rounded-xl">
+            <TouchableOpacity
+              className="flex-row items-center justify-center bg-green-500 py-4 rounded-xl"
+              onPress={() => handleSocialLogin('네이버')}
+            >
               <Text className="text-lg font-semibold text-white">네이버로 시작하기</Text>
             </TouchableOpacity>
           </View>

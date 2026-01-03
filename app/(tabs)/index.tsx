@@ -5,6 +5,7 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -30,6 +31,18 @@ export default function HomeScreen() {
     if (draft.description.trim()) {
       router.push('/request/create');
     }
+  };
+
+  const handleVoiceInput = () => {
+    Alert.alert(
+      '음성 입력',
+      '음성 인식 기능은 준비 중입니다.\n잠시 후 사용 가능합니다.',
+      [{ text: '확인' }]
+    );
+  };
+
+  const handleEarningsPress = () => {
+    router.push('/provider/earnings');
   };
 
   // 요청자 홈 화면
@@ -73,7 +86,7 @@ export default function HomeScreen() {
                 onChangeText={(text) => updateDraft({ description: text })}
               />
               <View className="flex-row justify-end mt-3 gap-2">
-                <TouchableOpacity className="p-2">
+                <TouchableOpacity className="p-2" onPress={handleVoiceInput}>
                   <Text className="text-xl">🎤</Text>
                 </TouchableOpacity>
                 <Button
@@ -178,7 +191,7 @@ export default function HomeScreen() {
             <Text className="text-senior-xl font-bold text-gray-900">
               0원
             </Text>
-            <TouchableOpacity className="mt-3">
+            <TouchableOpacity className="mt-3" onPress={handleEarningsPress}>
               <Text className="text-senior text-primary-600 font-semibold">
                 수익 현황 보기 →
               </Text>

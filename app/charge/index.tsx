@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
@@ -111,11 +112,32 @@ export default function ChargeScreen() {
             ))}
           </View>
 
-          {/* 직접 입력 안내 */}
-          <View className="mt-4 p-4 bg-gray-100 rounded-xl">
-            <Text className="text-gray-500 text-sm text-center">
-              💡 다른 금액을 충전하려면 결제 수단 선택 후 직접 입력하세요
-            </Text>
+          {/* 직접 입력 */}
+          <View className="mt-4">
+            <Text className="text-sm text-gray-600 mb-2">직접 입력</Text>
+            <View className="flex-row items-center bg-white border-2 border-gray-200 rounded-xl px-4">
+              <TextInput
+                className="flex-1 py-4 text-lg text-gray-900"
+                placeholder="금액을 입력하세요"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="number-pad"
+                value={customAmount}
+                onChangeText={(text) => {
+                  // 숫자만 허용
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  setCustomAmount(numericValue);
+                  if (numericValue) {
+                    setAmount(0); // 프리셋 선택 해제
+                  }
+                }}
+              />
+              <Text className="text-lg text-gray-500">원</Text>
+            </View>
+            {customAmount && parseInt(customAmount, 10) < 1000 && (
+              <Text className="text-red-500 text-sm mt-1">
+                최소 충전 금액은 1,000원입니다
+              </Text>
+            )}
           </View>
         </View>
 

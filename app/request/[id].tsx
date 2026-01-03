@@ -334,7 +334,7 @@ export default function RequestDetailScreen() {
             </Text>
           </View>
 
-          <View className="space-y-2">
+          <View className="gap-2">
             <View className="flex-row justify-between">
               <Text className="text-gray-500">기본료</Text>
               <Text className="text-gray-900">
@@ -422,13 +422,13 @@ export default function RequestDetailScreen() {
         )}
 
         {/* 액션 버튼 영역 */}
-        <View className="p-4 mt-4 space-y-3">
+        <View className="p-4 mt-4 gap-3">
           {/* 요청자 액션 */}
           {isRequester && isMyRequest && (
             <>
               {request.status === 'matched' && (
                 <>
-                  <View className="flex-row space-x-3">
+                  <View className="flex-row gap-3">
                     <Button
                       title="💬 채팅하기"
                       variant="outline"

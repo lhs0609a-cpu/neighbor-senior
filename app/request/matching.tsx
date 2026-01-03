@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Animated, Easing, TouchableOpacity } from 'react-native';
+import { View, Text, Animated, Easing, TouchableOpacity, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button, Card } from '@/components/ui';
 import { useRequestStore } from '@/stores';
+import { useChatRooms } from '@/hooks';
 import { mockUsers, mockProviderProfiles } from '@/mocks/data';
 
 type MatchingState = 'searching' | 'found' | 'confirmed';
@@ -46,12 +47,17 @@ const getRandomProvider = () => {
 
 export default function MatchingScreen() {
   const router = useRouter();
-  const { priceResult } = useRequestStore();
+  const { priceResult, requests } = useRequestStore();
+  const { chatRooms, refetch: refetchChatRooms } = useChatRooms();
   const [matchingState, setMatchingState] = useState<MatchingState>('searching');
   const [searchTime, setSearchTime] = useState(0);
 
   // 매칭된 제공자 (한 번만 생성)
   const matchedProvider = useMemo(() => getRandomProvider(), []);
+
+  // 최신 요청의 채팅방 찾기
+  const latestRequest = requests[0];
+  const chatRoom = chatRooms.find((room) => room.requestId === latestRequest?.id);
 
   // 애니메이션
   const pulseAnim = new Animated.Value(1);
@@ -114,12 +120,32 @@ export default function MatchingScreen() {
     }
   }, [matchingState]);
 
-  const handleAccept = () => {
+  const handleChat = async () => {
     setMatchingState('confirmed');
+    // 채팅방 목록 새로고침
+    await refetchChatRooms();
     // 2초 후 채팅으로 이동
     setTimeout(() => {
-      router.replace('/chat/1');
+      const targetRoom = chatRooms.find((room) => room.requestId === latestRequest?.id);
+      if (targetRoom) {
+        router.replace(`/chat/${targetRoom.id}`);
+      } else {
+        // 채팅방이 없으면 첫 번째 채팅방 또는 요청 상세로 이동
+        router.replace(latestRequest ? `/request/${latestRequest.id}` : '/(tabs)/requests');
+      }
     }, 2000);
+  };
+
+  const handleCall = () => {
+    const phone = '010-1234-5678'; // Mock 전화번호
+    Alert.alert(
+      '전화 연결',
+      `${matchedProvider.name}님께 전화할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '전화하기', onPress: () => Linking.openURL(`tel:${phone.replace(/-/g, '')}`) },
+      ]
+    );
   };
 
   const handleDecline = () => {
@@ -253,12 +279,12 @@ export default function MatchingScreen() {
               title="💬 채팅하기"
               variant="outline"
               className="flex-1"
-              onPress={handleAccept}
+              onPress={handleChat}
             />
             <Button
               title="📞 전화하기"
               className="flex-1"
-              onPress={handleAccept}
+              onPress={handleCall}
             />
           </View>
 

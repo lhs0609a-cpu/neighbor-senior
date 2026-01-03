@@ -6,10 +6,12 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useRequestStore } from '@/stores';
+import { useRequestStore, useAuthStore } from '@/stores';
+import { useRequests } from '@/hooks';
 import { Button, Card, CategoryGrid } from '@/components/ui';
 import { CATEGORY_NAMES, CATEGORY_ICONS, BASE_PRICE_TABLE } from '@/constants/prices';
 import { calculatePrice, analyzeRequestText } from '@/utils/priceCalculator';
@@ -25,7 +27,9 @@ const URGENCY_OPTIONS: { value: Urgency; label: string; description: string }[] 
 
 export default function CreateRequestScreen() {
   const router = useRouter();
+  const user = useAuthStore((state) => state.user);
   const { draft, updateDraft, priceResult, setPriceResult, isCalculating, setCalculating, resetDraft } = useRequestStore();
+  const { createRequest, isCreating } = useRequests();
 
   const [step, setStep] = useState(1); // 1: 카테고리, 2: 상세, 3: 확인
   const [subcategory, setSubcategory] = useState<string>('');
@@ -84,9 +88,37 @@ export default function CreateRequestScreen() {
   };
 
   const handleSubmit = () => {
-    // 요청 제출 로직
-    console.log('Request submitted:', { ...draft, subcategory, priceResult });
-    router.push('/request/matching');
+    if (!draft.category || !subcategory || !priceResult || !user) {
+      Alert.alert('오류', '필수 정보가 누락되었습니다.');
+      return;
+    }
+
+    // 요청 생성 API 호출
+    createRequest({
+      requesterId: user.id,
+      category: draft.category,
+      subcategory,
+      title: CATEGORY_NAMES[draft.category],
+      description: draft.description || `${CATEGORY_NAMES[draft.category]} 요청`,
+      requestType: draft.urgency === 'immediate' ? 'immediate' : 'scheduled',
+      scheduledAt: draft.scheduledAt,
+      location: draft.location || {
+        address: user.address?.full || '서울시 강남구',
+        latitude: 37.5000,
+        longitude: 127.0367,
+      },
+      destination: draft.destination,
+      pricing: {
+        basePrice: priceResult.breakdown.basePrice,
+        distanceFee: priceResult.breakdown.distanceFee,
+        demandMultiplier: priceResult.breakdown.demand,
+        specialAdjustments: priceResult.breakdown.specialAdjustments.map((adj) => ({
+          type: adj.name,
+          multiplier: adj.value,
+        })),
+        finalPrice: priceResult.price,
+      },
+    });
   };
 
   const handleBack = () => {
@@ -396,10 +428,12 @@ export default function CreateRequestScreen() {
                 variant="outline"
                 className="flex-1"
                 onPress={() => setStep(2)}
+                disabled={isCreating}
               />
               <Button
                 title="요청 보내기"
                 className="flex-1"
+                loading={isCreating}
                 onPress={handleSubmit}
               />
             </View>

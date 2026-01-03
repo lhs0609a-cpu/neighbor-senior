@@ -13,6 +13,7 @@ import {
   Platform,
   ActivityIndicator,
   Keyboard,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -152,13 +153,33 @@ function DateDivider({ date }: { date: string }) {
 
 // 타이핑 표시 컴포넌트
 function TypingIndicator() {
+  const dot1 = React.useRef(new Animated.Value(0)).current;
+  const dot2 = React.useRef(new Animated.Value(0)).current;
+  const dot3 = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    const animate = (dot: Animated.Value, delay: number) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: -4, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
+        ])
+      ).start();
+    };
+
+    animate(dot1, 0);
+    animate(dot2, 150);
+    animate(dot3, 300);
+  }, []);
+
   return (
     <View className="self-start max-w-[75%] mb-2">
       <View className="px-4 py-3 rounded-2xl bg-gray-200 rounded-bl-none flex-row items-center">
-        <View className="flex-row space-x-1">
-          <View className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-          <View className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-          <View className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+        <View className="flex-row gap-1">
+          <Animated.View style={{ transform: [{ translateY: dot1 }] }} className="w-2 h-2 bg-gray-400 rounded-full" />
+          <Animated.View style={{ transform: [{ translateY: dot2 }] }} className="w-2 h-2 bg-gray-400 rounded-full" />
+          <Animated.View style={{ transform: [{ translateY: dot3 }] }} className="w-2 h-2 bg-gray-400 rounded-full" />
         </View>
         <Text className="text-gray-500 ml-2 text-sm">입력 중...</Text>
       </View>
