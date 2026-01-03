@@ -7,8 +7,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '@/stores';
 
-import '../global.css';
-
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 

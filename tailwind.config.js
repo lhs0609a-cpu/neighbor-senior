@@ -4,7 +4,6 @@ module.exports = {
     "./app/**/*.{js,jsx,ts,tsx}",
     "./components/**/*.{js,jsx,ts,tsx}",
   ],
-  presets: [require("nativewind/preset")],
   theme: {
     extend: {
       colors: {
@@ -21,12 +20,12 @@ module.exports = {
           900: '#312E81',
         },
         senior: {
-          warm: '#F97316',  // 시니어 친화 따뜻한 오렌지
-          text: '#1F2937',  // 고대비 텍스트
+          warm: '#F97316',
+          text: '#1F2937',
         },
       },
       fontSize: {
-        'senior': ['18px', '28px'],  // 시니어용 큰 글씨
+        'senior': ['18px', '28px'],
         'senior-lg': ['20px', '32px'],
         'senior-xl': ['24px', '36px'],
       },
