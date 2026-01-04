@@ -4,22 +4,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Platform, Alert } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores';
-
-// 알림 핸들러 설정 (앱이 포그라운드일 때 알림 표시) - 웹이 아닌 경우에만
-if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      priority: Notifications.AndroidNotificationPriority.HIGH,
-    }),
-  });
-}
 
 /**
  * 푸시 알림 훅
@@ -29,106 +15,83 @@ export const useNotifications = () => {
   const user = useAuthStore((state) => state.user);
   const [expoPushToken, setExpoPushToken] = useState<string>('');
   const [hasPermission, setHasPermission] = useState<boolean>(false);
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<any>();
+  const responseListener = useRef<any>();
 
   // 푸시 토큰 등록
   const registerForPushNotifications = useCallback(async () => {
-    let token: string | undefined;
-
-    // 실제 디바이스에서만 동작
-    if (!Device.isDevice) {
-      console.log('푸시 알림은 실제 디바이스에서만 작동합니다');
+    // 웹에서는 알림 지원 안함
+    if (Platform.OS === 'web') {
+      console.log('웹에서는 푸시 알림이 지원되지 않습니다');
       return null;
     }
 
-    // 권한 확인
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    // 권한 요청
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      console.log('푸시 알림 권한이 거부되었습니다');
-      setHasPermission(false);
-      return null;
-    }
-
-    setHasPermission(true);
-
-    // Expo 푸시 토큰 가져오기
     try {
+      const Notifications = require('expo-notifications');
+      const Device = require('expo-device');
+
+      // 실제 디바이스에서만 동작
+      if (!Device.isDevice) {
+        console.log('푸시 알림은 실제 디바이스에서만 작동합니다');
+        return null;
+      }
+
+      // 권한 확인
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      // 권한 요청
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        console.log('푸시 알림 권한이 거부되었습니다');
+        setHasPermission(false);
+        return null;
+      }
+
+      setHasPermission(true);
+
+      // Expo 푸시 토큰 가져오기
       const pushToken = await Notifications.getExpoPushTokenAsync({
         projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
       });
-      token = pushToken.data;
-      setExpoPushToken(token);
+      setExpoPushToken(pushToken.data);
+
+      // Android 알림 채널 설정
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: '기본 알림',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#F97316',
+        });
+
+        await Notifications.setNotificationChannelAsync('chat', {
+          name: '채팅 알림',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 100, 100, 100],
+        });
+
+        await Notifications.setNotificationChannelAsync('request', {
+          name: '요청 알림',
+          importance: Notifications.AndroidImportance.HIGH,
+        });
+      }
+
+      return pushToken.data;
     } catch (error) {
-      console.error('푸시 토큰 가져오기 실패:', error);
+      console.error('푸시 토큰 등록 실패:', error);
+      return null;
     }
-
-    // Android 알림 채널 설정
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: '기본 알림',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#F97316',
-      });
-
-      await Notifications.setNotificationChannelAsync('chat', {
-        name: '채팅 알림',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 100, 100, 100],
-      });
-
-      await Notifications.setNotificationChannelAsync('request', {
-        name: '요청 알림',
-        importance: Notifications.AndroidImportance.HIGH,
-      });
-    }
-
-    return token;
-  }, []);
-
-  // 알림 설정 초기화
-  useEffect(() => {
-    registerForPushNotifications();
-
-    // 알림 수신 리스너 (앱이 포그라운드일 때)
-    notificationListener.current = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log('알림 수신:', notification);
-      }
-    );
-
-    // 알림 클릭 리스너
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data;
-        handleNotificationPress(data);
-      }
-    );
-
-    return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
-    };
   }, []);
 
   // 알림 클릭 처리
   const handleNotificationPress = useCallback(
     (data: Record<string, unknown>) => {
       const type = data.type as string;
-      const id = data.id as string;
 
       switch (type) {
         case 'chat':
@@ -137,10 +100,6 @@ export const useNotifications = () => {
           }
           break;
         case 'request':
-          if (data.requestId) {
-            router.push(`/request/${data.requestId}`);
-          }
-          break;
         case 'matching':
           if (data.requestId) {
             router.push(`/request/${data.requestId}`);
@@ -156,7 +115,61 @@ export const useNotifications = () => {
     [router]
   );
 
-  // 로컬 알림 발송 (테스트/Mock용)
+  // 알림 설정 초기화
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    registerForPushNotifications();
+
+    try {
+      const Notifications = require('expo-notifications');
+
+      // 알림 핸들러 설정
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        }),
+      });
+
+      // 알림 수신 리스너
+      notificationListener.current = Notifications.addNotificationReceivedListener(
+        (notification: any) => {
+          console.log('알림 수신:', notification);
+        }
+      );
+
+      // 알림 클릭 리스너
+      responseListener.current = Notifications.addNotificationResponseReceivedListener(
+        (response: any) => {
+          const data = response.notification.request.content.data;
+          handleNotificationPress(data);
+        }
+      );
+    } catch (error) {
+      console.error('알림 리스너 설정 실패:', error);
+    }
+
+    return () => {
+      if (Platform.OS === 'web') return;
+
+      try {
+        const Notifications = require('expo-notifications');
+        if (notificationListener.current) {
+          Notifications.removeNotificationSubscription(notificationListener.current);
+        }
+        if (responseListener.current) {
+          Notifications.removeNotificationSubscription(responseListener.current);
+        }
+      } catch (error) {
+        console.error('알림 리스너 제거 실패:', error);
+      }
+    };
+  }, [registerForPushNotifications, handleNotificationPress]);
+
+  // 로컬 알림 발송
   const sendLocalNotification = useCallback(
     async (
       title: string,
@@ -164,15 +177,25 @@ export const useNotifications = () => {
       data?: Record<string, unknown>,
       channelId: string = 'default'
     ) => {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data: data || {},
-          sound: true,
-        },
-        trigger: null, // 즉시 발송
-      });
+      if (Platform.OS === 'web') {
+        console.log('웹 알림:', { title, body });
+        return;
+      }
+
+      try {
+        const Notifications = require('expo-notifications');
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title,
+            body,
+            data: data || {},
+            sound: true,
+          },
+          trigger: null,
+        });
+      } catch (error) {
+        console.error('알림 발송 실패:', error);
+      }
     },
     []
   );
@@ -185,40 +208,71 @@ export const useNotifications = () => {
       triggerDate: Date,
       data?: Record<string, unknown>
     ) => {
-      const identifier = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data: data || {},
-          sound: true,
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: triggerDate,
-        },
-      });
+      if (Platform.OS === 'web') {
+        console.log('웹 예약 알림:', { title, body, triggerDate });
+        return null;
+      }
 
-      return identifier;
+      try {
+        const Notifications = require('expo-notifications');
+        const identifier = await Notifications.scheduleNotificationAsync({
+          content: {
+            title,
+            body,
+            data: data || {},
+            sound: true,
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: triggerDate,
+          },
+        });
+        return identifier;
+      } catch (error) {
+        console.error('예약 알림 실패:', error);
+        return null;
+      }
     },
     []
   );
 
   // 예약된 알림 취소
   const cancelNotification = useCallback(async (identifier: string) => {
-    await Notifications.cancelScheduledNotificationAsync(identifier);
+    if (Platform.OS === 'web') return;
+
+    try {
+      const Notifications = require('expo-notifications');
+      await Notifications.cancelScheduledNotificationAsync(identifier);
+    } catch (error) {
+      console.error('알림 취소 실패:', error);
+    }
   }, []);
 
   // 모든 알림 취소
   const cancelAllNotifications = useCallback(async () => {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (Platform.OS === 'web') return;
+
+    try {
+      const Notifications = require('expo-notifications');
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    } catch (error) {
+      console.error('전체 알림 취소 실패:', error);
+    }
   }, []);
 
-  // 뱃지 수 설정 (iOS)
+  // 뱃지 수 설정
   const setBadgeCount = useCallback(async (count: number) => {
-    await Notifications.setBadgeCountAsync(count);
+    if (Platform.OS === 'web') return;
+
+    try {
+      const Notifications = require('expo-notifications');
+      await Notifications.setBadgeCountAsync(count);
+    } catch (error) {
+      console.error('뱃지 설정 실패:', error);
+    }
   }, []);
 
-  // 알림 테스트 (Mock)
+  // 알림 테스트
   const sendTestNotification = useCallback(
     (type: 'chat' | 'request' | 'matching' | 'payment') => {
       const notifications = {
@@ -251,23 +305,14 @@ export const useNotifications = () => {
   );
 
   return {
-    // 상태
     expoPushToken,
     hasPermission,
-
-    // 권한 요청
     requestPermission: registerForPushNotifications,
-
-    // 알림 발송
     sendLocalNotification,
     scheduleNotification,
-
-    // 알림 관리
     cancelNotification,
     cancelAllNotifications,
     setBadgeCount,
-
-    // 테스트
     sendTestNotification,
   };
 };
@@ -275,10 +320,6 @@ export const useNotifications = () => {
 /**
  * 알림 설정 훅
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const NOTIFICATION_SETTINGS_KEY = 'notification_settings';
-
 interface NotificationSettingsType {
   newRequest: boolean;
   matching: boolean;
@@ -295,6 +336,8 @@ const defaultSettings: NotificationSettingsType = {
   marketing: false,
 };
 
+const NOTIFICATION_SETTINGS_KEY = 'notification_settings';
+
 export const useNotificationSettings = () => {
   const [settings, setSettings] = useState<NotificationSettingsType>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
@@ -303,9 +346,18 @@ export const useNotificationSettings = () => {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const stored = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
-        if (stored) {
-          setSettings({ ...defaultSettings, ...JSON.parse(stored) });
+        if (Platform.OS === 'web') {
+          // 웹에서는 localStorage 사용
+          const stored = localStorage.getItem(NOTIFICATION_SETTINGS_KEY);
+          if (stored) {
+            setSettings({ ...defaultSettings, ...JSON.parse(stored) });
+          }
+        } else {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          const stored = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
+          if (stored) {
+            setSettings({ ...defaultSettings, ...JSON.parse(stored) });
+          }
         }
       } catch (error) {
         console.error('알림 설정 로드 실패:', error);
@@ -319,8 +371,12 @@ export const useNotificationSettings = () => {
   // 설정 저장
   const saveSettings = useCallback(async (newSettings: NotificationSettingsType) => {
     try {
-      await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(newSettings));
-      // Mock: 서버 동기화
+      if (Platform.OS === 'web') {
+        localStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(newSettings));
+      } else {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(newSettings));
+      }
       await new Promise((r) => setTimeout(r, 200));
     } catch (error) {
       console.error('알림 설정 저장 실패:', error);
