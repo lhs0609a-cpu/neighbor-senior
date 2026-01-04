@@ -3,9 +3,27 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
-import MapView, { Marker, Circle, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
 import { useLocation } from '@/hooks';
+
+// react-native-maps는 웹에서 지원되지 않으므로 조건부 import
+let MapView: any;
+let Marker: any;
+let Circle: any;
+
+if (Platform.OS !== 'web') {
+  const Maps = require('react-native-maps');
+  MapView = Maps.default;
+  Marker = Maps.Marker;
+  Circle = Maps.Circle;
+}
+
+interface Region {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
 
 interface Location {
   latitude: number;
@@ -104,6 +122,21 @@ export function ServiceMap({
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4F46E5" />
           <Text style={styles.loadingText}>지도를 불러오는 중...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // 웹에서는 지도 대신 플레이스홀더 표시
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.container, { height }]}>
+        <View style={styles.webPlaceholder}>
+          <Text style={styles.webPlaceholderIcon}>🗺️</Text>
+          <Text style={styles.webPlaceholderText}>지도 보기</Text>
+          <Text style={styles.webPlaceholderSubtext}>
+            {requestLocation?.address || '위치 정보'}
+          </Text>
         </View>
       </View>
     );
@@ -276,6 +309,26 @@ const styles = StyleSheet.create({
   selectedInfoText: {
     color: '#374151',
     fontSize: 14,
+  },
+  webPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E5E7EB',
+  },
+  webPlaceholderIcon: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  webPlaceholderText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  webPlaceholderSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
   },
 });
 

@@ -9,15 +9,17 @@ import * as Device from 'expo-device';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores';
 
-// 알림 핸들러 설정 (앱이 포그라운드일 때 알림 표시)
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-  }),
-});
+// 알림 핸들러 설정 (앱이 포그라운드일 때 알림 표시) - 웹이 아닌 경우에만
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      priority: Notifications.AndroidNotificationPriority.HIGH,
+    }),
+  });
+}
 
 /**
  * 푸시 알림 훅
